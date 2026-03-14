@@ -6,7 +6,7 @@ const config = {
         default: 'arcade',
         arcade: {
             gravity: { y: 500 },   // normal for the player
-            debug: false
+            debug: true
         }
     },
     scene: {
@@ -27,8 +27,10 @@ let scoreText;
 let winText;
 let bg;
 let ground;
+let hasFinalKey = false;
 let hasKey = false;
 let ladders;
+let finalKey;
 let onLadder = false;
 
 function preload(){
@@ -39,6 +41,7 @@ function preload(){
     this.load.image('portal', 'assets/portal.png');
     this.load.image('background2', 'assets/background2.png');
     this.load.image('ground2', 'assets/ground2.png');
+    this.load.image('finalKey', 'assets/finalKey.png');
     this.load.image('key', 'assets/key.png');
     this.load.image('background3', 'assets/background3.png');
     this.load.image('ladder', 'assets/ladder.png');
@@ -76,7 +79,7 @@ function create(){
         const c = crystals.create(x, 0, 'crystal');
         c.setBounceY(Phaser.Math.FloatBetween(0.4,0.8));
         c.setScale(0.4);
-
+       
         c.body.setAllowGravity(false);     // keep player gravity normal
         c.setVelocityY(100);              // faster than 20
     };
@@ -251,7 +254,7 @@ function enterNextRoom(){
 
 function collectTheKey(player, key) {
     key.disableBody(true, true);
-    hasKey = true;
+    hasKey = true;    
 }
 
 function tryEnterFinalPortal() {
@@ -281,7 +284,8 @@ function enterFinalChamber() {
     // We use 'ground' (green) as requested ("gran")
     
     ground.create(500, 350, 'ground3').setScale(0.5).refreshBody();
-    ground.create(250, 250, 'ground3').setScale(0.5).refreshBody();
+    ground.create(120, 150, 'ground3').setScale(0.5).refreshBody();
+    ground.create(210, 250, 'ground3').setScale(0.5).refreshBody();
     ground.create(650, 180, 'ground3').setScale(0.5).refreshBody();
 
     // Create ladders
@@ -296,22 +300,41 @@ function enterFinalChamber() {
 
     // Create the final trophy to win the game
     const trophy = this.physics.add.staticSprite(650, 120, 'trophy').setScale(0.4).refreshBody();
-    this.physics.add.overlap(player, trophy, finalWin, null, this);
+    this.physics.add.overlap(player, trophy, finalWin, null, this);  
+    finalKey = this.physics.add.sprite(120, 100,'finalKey').setScale(0.17) 
+    finalKey.body.setAllowGravity(false);
 
+    this.physics.add.overlap(player, finalKey, collectFinalKey, null, this);
     this.cameras.main.fadeIn(500);
 }
 
-function finalWin(player, trophy) {
-    trophy.disableBody(true, true);
+function collectFinalKey(player, finalKey) {
+    finalKey.disableBody(true, true);
+    hasFinalKey = true;
+}
 
-    // Create coin and make it float up
-    const coin = this.physics.add.sprite(420, 250,'coin');
-    coin.body.setAllowGravity(false);
-    this.tweens.add({
-        targets: coin,
-        y: trophy.y - 90, // Move up
-        duration: 1000
-    });
+function finalWin(player, trophy) {
+    if (!hasFinalKey) {
+        const text = this.add.text(250, 220, 'You need a final key!', { // Add the text
+            fontSize: '35px',
+            fill: '#ff0000'
+        });
+
+        this.tweens.add({
+            targets: text,
+            alpha: 0, // Make it disappear
+            duration: 1000
+        }); // Fade duration in milliseconds
+    } else {
+
+        trophy.disableBody(true, true);
+        const coin = this.physics.add.sprite(420, 250, 'coin');
+        coin.body.setAllowGravity(false);
+        this.tweens.add({
+            targets: coin,
+            y: trophy.y - 90, // Move up
+            duration: 1000
+        });
 
     this.add.text(200, 220, 'CONGRATULATIONS!', {
         fontSize: '48px',
@@ -321,4 +344,5 @@ function finalWin(player, trophy) {
         fontSize: '24px',
         fill: '#ffffff'
     });
+}
 }
