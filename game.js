@@ -6,7 +6,7 @@ const config = {
         default: 'arcade',
         arcade: {
             gravity: { y: 500 },   // normal for the player
-            debug: true
+            debug: false
         }
     },
     scene: {
@@ -28,6 +28,8 @@ let winText;
 let bg;
 let ground;
 let hasKey = false;
+let ladders;
+let onLadder = false;
 
 function preload(){
     this.load.image('ground','assets/ground.png');
@@ -38,7 +40,11 @@ function preload(){
     this.load.image('background2', 'assets/background2.png');
     this.load.image('ground2', 'assets/ground2.png');
     this.load.image('key', 'assets/key.png');
-    this.load.image('portal', 'assets/portal.png');
+    this.load.image('background3', 'assets/background3.png');
+    this.load.image('ladder', 'assets/ladder.png');
+    this.load.image('trophy', 'assets/trophy.png');
+    this.load.image('ground3', 'assets/ground3.png');
+    this.load.image('coin', 'assets/coin.png');
 }
 
 function create(){
@@ -104,18 +110,38 @@ function create(){
 
 function update(){
 
-    if (cursors.left.isDown)  player.setVelocityX(-160);
-    else if (cursors.right.isDown) player.setVelocityX(160);
-    else player.setVelocityX(0);
-
-    // JUMP FIX
-    if (cursors.up.isDown && player.body.blocked.down) {
-        player.setVelocityY(-330);
+    // Horizontal movement is the same whether on a ladder or not
+    if (cursors.left.isDown) {
+        player.setVelocityX(-160);
+    } else if (cursors.right.isDown) {
+        player.setVelocityX(160);
+    } else {
+        player.setVelocityX(0);
     }
 
-    if (cursors.down.isDown) {
-        // crouch
+    const isJumping = player.body.velocity.y < -100;
+
+    // Vertical movement depends on whether we are on a ladder
+    if (onLadder && !player.body.blocked.down && !isJumping) {
+        player.body.setAllowGravity(false); // Stick to the ladder
+
+        if (cursors.up.isDown) {
+            player.setVelocityY(-330); // Climb up
+        } else if (cursors.down.isDown) {
+            player.setVelocityY(150); // Climb down
+        } else {
+            player.setVelocityY(0); // Stop on the ladder
+        }
+    } else {
+        player.body.setAllowGravity(true); // Fall normally
+        // Normal jump
+        if (cursors.up.isDown && player.body.blocked.down) {
+            player.setVelocityY(-330);
+        }
     }
+
+    // Reset the ladder flag each frame. It will be set to true by the overlap callback if needed.
+    onLadder = false;
 }
 
 function collectCrystal(player, crystal){
@@ -137,8 +163,8 @@ function collectCrystal(player, crystal){
 
         
         if(!portal){
-            portal = this.physics.add.staticSprite(760,420,'portal')
-                          .setScale(0.2)
+            portal = this.physics.add.staticSprite(760,460,'portal')
+                          .setScale(0.25)
                           .refreshBody();
 
             this.physics.add.overlap(player, portal, enterNextRoom, null, this);
@@ -154,10 +180,13 @@ function enterNextRoom(){
 
     this.time.delayedCall(500, ()=>{
 
-        bg.setTexture('background2');
+        bg.setTexture('background2').setDisplaySize(800, 500);
 
         // remove old ground, the new chamber will have its own platforms
         ground.clear(true, true);
+
+        // Destroy the previous portal so it doesn't linger
+        if(portal) portal.destroy();
 
         if(winText) winText.destroy();
 
@@ -184,15 +213,21 @@ function enterNextRoom(){
         });
 
         // platforms
-        const platforms = this.physics.add.staticGroup();
+        ground.create(200,440,'ground2').setScale(0.5).refreshBody();
+        const p = ground.create(350,360,'ground2').setScale(0.5).refreshBody();
+        p.body.checkCollision.down = false;
+        p.body.checkCollision.left = false;
+        p.body.checkCollision.right = false;
+        ground.create(500,280,'ground2').setScale(0.5).refreshBody();
+        ground.create(650,200,'ground2').setScale(0.5).refreshBody();
+        ground.create(420,120,'ground2').setScale(0.5).refreshBody();
+     
+         // Create ladders
+         ladders = this.physics.add.staticGroup();
 
-        platforms.create(200,440,'ground2').setScale(0.5).refreshBody();
-        platforms.create(350,360,'ground2').setScale(0.5).refreshBody();
-        platforms.create(500,280,'ground2').setScale(0.5).refreshBody();
-        platforms.create(650,200,'ground2').setScale(0.5).refreshBody();
-        platforms.create(420,120,'ground2').setScale(0.5).refreshBody();
-
-        this.physics.add.collider(player, platforms);
+         // A tall ladder going up to the platform 
+        ladders.create(350, 420, 'ladder').setScale(0.5, 0.8).refreshBody();
+        this.physics.add.overlap(player, ladders, () => { onLadder = true; }, null, this);
 
         // key
         const key = this.physics.add.sprite(420,40,'key')
@@ -202,11 +237,11 @@ function enterNextRoom(){
 
         this.physics.add.overlap(player, key, collectTheKey, null, this);
 
-        const finalPortal = this.physics.add.staticSprite(760, 420, 'portal')
-            .setScale(0.2)
+        portal = this.physics.add.staticSprite(760, 460, 'portal')
+            .setScale(0.25)
             .refreshBody();
 
-        this.physics.add.overlap(player, finalPortal, tryEnterFinalPortal, null, this);
+        this.physics.add.overlap(player, portal, tryEnterFinalPortal, null, this);
 
         this.cameras.main.fadeIn(500);
 
@@ -221,12 +256,8 @@ function collectTheKey(player, key) {
 
 function tryEnterFinalPortal() {
     if (hasKey) {
-        this.add.text(300, 220, 'FINAL WIN!', {
-            fontSize: '48px',
-            fill: '#00ff00'
-        });
-        player.body.enable = false;
-        player.setVelocity(0);
+        this.cameras.main.fade(500);
+        this.time.delayedCall(500, enterFinalChamber, [], this);
     } else {
         const closeText = this.add.text(350, 220, 'CLOSE', {
             fontSize: '48px',
@@ -237,4 +268,57 @@ function tryEnterFinalPortal() {
             closeText.destroy();
         });
     }
+}
+
+function enterFinalChamber() {
+    // Setup for the final chamber with ladders
+    bg.setTexture('background3').setDisplaySize(800, 500);
+    if (portal) portal.destroy(); // Remove the portal from the previous room
+    ground.clear(true, true); // remove old platforms from previous chamber
+    player.setPosition(100, 400);
+
+    // Create new platforms for the final chamber
+    // We use 'ground' (green) as requested ("gran")
+    
+    ground.create(500, 350, 'ground3').setScale(0.5).refreshBody();
+    ground.create(250, 250, 'ground3').setScale(0.5).refreshBody();
+    ground.create(650, 180, 'ground3').setScale(0.5).refreshBody();
+
+    // Create ladders
+    ladders = this.physics.add.staticGroup();
+    // A tall ladder going up to the platform at y=250
+    ladders.create(350, 350, 'ladder').setScale(0.5, 1).refreshBody();
+    // A shorter ladder going up to the platform at y=180
+    ladders.create(550, 265, 'ladder').setScale(0.5, 1).refreshBody();
+
+    // When player overlaps with a ladder, set the onLadder flag to true for the update loop
+    this.physics.add.overlap(player, ladders, () => { onLadder = true; }, null, this);
+
+    // Create the final trophy to win the game
+    const trophy = this.physics.add.staticSprite(650, 120, 'trophy').setScale(0.4).refreshBody();
+    this.physics.add.overlap(player, trophy, finalWin, null, this);
+
+    this.cameras.main.fadeIn(500);
+}
+
+function finalWin(player, trophy) {
+    trophy.disableBody(true, true);
+
+    // Create coin and make it float up
+    const coin = this.physics.add.sprite(420, 250,'coin');
+    coin.body.setAllowGravity(false);
+    this.tweens.add({
+        targets: coin,
+        y: trophy.y - 90, // Move up
+        duration: 1000
+    });
+
+    this.add.text(200, 220, 'CONGRATULATIONS!', {
+        fontSize: '48px',
+        fill: '#ffff00'
+    });
+    this.add.text(250, 280, 'You are a true explorer!', {
+        fontSize: '24px',
+        fill: '#ffffff'
+    });
 }
