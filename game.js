@@ -226,7 +226,7 @@ function enterNextRoom(){
          ladders = this.physics.add.staticGroup();
 
          // A tall ladder going up to the platform 
-        ladders.create(350, 420, 'ladder').setScale(0.5, 0.8).refreshBody();
+        ladders.create(300, 420, 'ladder').setScale(0.5, 0.8).refreshBody();
         this.physics.add.overlap(player, ladders, () => { onLadder = true; }, null, this);
 
         // key
@@ -287,7 +287,7 @@ function enterFinalChamber() {
     // Create ladders
     ladders = this.physics.add.staticGroup();
     // A tall ladder going up to the platform at y=250
-    ladders.create(350, 350, 'ladder').setScale(0.5, 1).refreshBody();
+    ladders.create(300, 350, 'ladder').setScale(0.5, 1).refreshBody();
     // A shorter ladder going up to the platform at y=180
     ladders.create(550, 265, 'ladder').setScale(0.5, 1).refreshBody();
 
