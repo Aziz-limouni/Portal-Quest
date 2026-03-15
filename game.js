@@ -6,7 +6,7 @@ const config = {
         default: 'arcade',
         arcade: {
             gravity: { y: 500 },   // normal for the player
-            debug: true
+            debug: false
         }
     },
     scene: {
@@ -58,7 +58,7 @@ function create(){
         .setScrollFactor(0);
 
     ground = this.physics.add.staticGroup();
-    ground.create(400, 500, 'ground')       // centre of screen
+    ground.create(400, 520, 'ground')       // centre of screen
       .setScale(2, 1)                   // double width only
       .setOrigin(0.5, 1)                // centre the sprite
       .refreshBody();
